@@ -57,7 +57,7 @@ wtgain: mother’s weight gain during pregnancy (pounds)
 -->
 
 ```{r}
-# load and edit data, create the city_state variable required. 
+# load data
 birthweight_data = 
   read_csv("./data/birthweight.csv")
 ```
@@ -243,3 +243,6 @@ upper <- mean(coef_df$log_val)+error
 print(lower)
 print(upper)
 ```
+We can see both the distribution of estimated R^2 and estimated log(β_0∗β_1) and normally distributed,with mean around 0.91 and 2.01. These results meet the central limit theorem.
+
+The 95% CI of estimated R^2 are [0.8937,  0.9271], and of estimated log(β_0∗β_1) are [2.012137, 2.013479]
