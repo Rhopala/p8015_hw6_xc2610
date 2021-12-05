@@ -61,7 +61,7 @@ wtgain: mother’s weight gain during pregnancy (pounds)
 birthweight_data = 
   read_csv("./data/birthweight.csv")
 ```
-
+First I turned catagorical data in factors.
 ```{r}
 birthweight_data <-
   birthweight_data %>%
@@ -73,20 +73,16 @@ birthweight_data <-
     babysex = fct_infreq(babysex),
     frace = fct_infreq(frace),
     mrace = fct_infreq(mrace))
-  #mutate(babysex = ifelse(babysex == 1, "male", "female")) %>%
 ```
 
+After researching on most possible factors of baby weight, I chose some variables and made a model. This model is based on hypothesized structure, and no interations between variables.
+
+Reference: Metgud, Chandra S et al. “Factors affecting birth weight of a newborn--a community based study in rural Karnataka, India.” PloS one vol. 7,7 (2012): e40040. doi:10.1371/journal.pone.0040040
 ```{r}
 fit = lm(bwt ~ babysex + bhead + blength + gaweeks + smoken + pnumlbw + wtgain + frace + mrace, data = birthweight_data)
-fit_com1 = lm(bwt ~ blength + gaweeks, data = birthweight_data)
-fit_com2 = lm(bwt ~ babysex + bhead + blength 
-              + babysex * bhead
-              + bhead * blength
-              + babysex * blength
-              + babysex * bhead * blength, data = birthweight_data)
 ```
 
-```{r, message = FALSE}
+```{r, include=FALSE}
 summary(fit)
 summary(fit)$coef
 coef(fit)
@@ -104,17 +100,22 @@ fit %>%
 ```
 
 ```{r}
+# plot residuals along fitted values
 res <- resid(fit)
-plot(fitted(fit), res)
+plot(fitted(fit), res, main="Residuals vs. fitted values in birthweight prediction model",
+        xlab="fited values",
+        ylab="residuals")
 abline(0,0)
 ```
 
 ```{r}
+# create a cross validation dataframe
 cv_df = 
   crossv_mc(birthweight_data, 100) 
 ```
 
 ```{r}
+# check trian and test data
 cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
 cv_df %>% pull(test) %>% .[[1]] %>% as_tibble
 ```
@@ -127,6 +128,7 @@ cv_df =
 ```
 
 ```{r}
+# cross validation on the three models
 cv_df = 
   cv_df %>% 
   mutate(
@@ -138,11 +140,11 @@ cv_df =
               + babysex * blength
               + babysex * bhead * blength, data = birthweight_data)))%>% 
   mutate(
-    rmse_fit = map2_dbl(fit, test, ~rmse(model = .x, data = .y)),
-    rmse_fit2 = map2_dbl(fit_com1, test, ~rmse(model = .x, data = .y)),
-    rmse_fit3 = map2_dbl(fit_com2, test, ~rmse(model = .x, data = .y)))
+    rmse_my_model = map2_dbl(fit, test, ~rmse(model = .x, data = .y)),
+    rmse_direct_model = map2_dbl(fit_com1, test, ~rmse(model = .x, data = .y)),
+    rmse_interaction_model = map2_dbl(fit_com2, test, ~rmse(model = .x, data = .y)))
 ```
-
+The results shows my model has the best behavior
 ```{r}
 cv_df %>% 
   select(starts_with("rmse")) %>% 
@@ -152,7 +154,7 @@ cv_df %>%
     values_to = "rmse",
     names_prefix = "rmse_") %>% 
   mutate(model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  ggplot(aes(x = model, y = rmse)) + geom_violin() + ggtitle("Cross Validation of Three Models")
 ```
 
 ## Problem 2
@@ -160,6 +162,7 @@ cv_df %>%
 
 
 ```{r, message=FALSE}
+#get data
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -188,16 +191,17 @@ estimate_rsq <- boot(data= weather_df, statistic=rsq,
 
 
 ```{r}
-# view results
+# plot results
 density_rsq <- density(estimate_rsq[[2]])
-plot(density_rsq)
+plot(density_rsq, main="Density of estimated R squares",
+        xlab="r-square",
+        ylab="density")
 ```
 
 ```{r}
 # get 95% confidence interval
 boot.ci(estimate_rsq, type="bca")
 ```
-
 ```{r}
 # function to obtain regression weights
 bs <- function(formula, data, indices) {
@@ -212,11 +216,13 @@ estimate_coef <- boot(data = weather_df, statistic=bs,
 ```
 
 ```{r}
+# get interested data from bootstrap result
 coef_df <- estimate_coef[[2]]
 coef_df <- data.table::as.data.table(coef_df)
 ```
 
 ```{r}
+# calculate the log estimate of each bootstrap result
 coef_df <-
 coef_df %>%
   mutate (
@@ -225,15 +231,15 @@ coef_df %>%
 ```
 
 ```{r}
-ggplot(coef_df, aes(x = log_val)) + geom_density()
+# plot the estimates
+ggplot(coef_df, aes(x = log_val)) + geom_density() + ggtitle("Density of estimate log(β_0∗β_1)") + xlab("log(β_0∗β_1)") + ylab("density")
 ```
 
 ```{r}
 # view results
-error <- qt(0.975,df=length(coef_df$log_val)-1)*sd(coef_df$log_val)/sqrt(length(coef_df$log_val))
+error <- qt(0.975, df=length(coef_df$log_val)-1)*sd(coef_df$log_val)/sqrt(length(coef_df$log_val))
 lower <- mean(coef_df$log_val)-error
 upper <- mean(coef_df$log_val)+error
 print(lower)
 print(upper)
 ```
-
